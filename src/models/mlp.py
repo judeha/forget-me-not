@@ -12,14 +12,26 @@ class MLP(nn.Module):
         output_size: int = 10,
     ) -> None:
         super().__init__()
-        layers: list[nn.Module] = []
+        self.hidden_sizes = hidden_sizes
+        self.linears = nn.ModuleList()
         prev = input_size
         for h in hidden_sizes:
-            layers.append(nn.Linear(prev, h))
-            layers.append(nn.ReLU())
+            self.linears.append(nn.Linear(prev, h))
             prev = h
-        layers.append(nn.Linear(prev, output_size))
-        self.net = nn.Sequential(*layers)
+        self.output_layer = nn.Linear(prev, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+        h = x
+        for linear in self.linears:
+            h = torch.relu(linear(h))
+        return self.output_layer(h)
+
+    def get_layer_activations(self, x: torch.Tensor) -> list[torch.Tensor]:
+        """Return post-ReLU activations at each hidden layer (detached)."""
+        acts = []
+        h = x
+        with torch.no_grad():
+            for linear in self.linears:
+                h = torch.relu(linear(h))
+                acts.append(h.detach())
+        return acts
