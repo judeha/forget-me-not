@@ -58,7 +58,7 @@ def _build_tasks(cfg: dict) -> list[dict]:
 def _build_model(cfg: dict, device: torch.device) -> nn.Module:
     model_type = cfg.get("model_type", "mlp")
     method = cfg.get("method", "sequential")
-    masked = method in ("overlap_uniform", "overlap_hierarchical")
+    masked = method in ("overlap_uniform", "overlap_hierarchical", "overlap_reversed", "ewc_overlap")
 
     if model_type == "mlp":
         if masked:
@@ -127,9 +127,11 @@ def _run_method(
         )
         extra = _collect_fisher_stats(model, tasks, cfg, device)
 
-    elif method in ("overlap_uniform", "overlap_hierarchical"):
+    elif method in ("overlap_uniform", "overlap_hierarchical", "overlap_reversed"):
         from src.methods.overlap import make_rho_schedule, run_overlap, collect_mask_artifacts
-        mode = "uniform" if method == "overlap_uniform" else "hierarchical"
+        mode = {"overlap_uniform": "uniform",
+                "overlap_hierarchical": "hierarchical",
+                "overlap_reversed": "reversed"}[method]
         rho_sched = make_rho_schedule(
             model.n_mask_layers,
             cfg.get("rho_max", 0.9),
@@ -148,6 +150,31 @@ def _run_method(
             device=device,
         )
         extra = collect_mask_artifacts(model, len(tasks))
+
+    elif method == "ewc_overlap":
+        from src.methods.ewc_overlap import run_ewc_overlap
+        from src.methods.overlap import make_rho_schedule, collect_mask_artifacts
+        rho_sched = make_rho_schedule(
+            model.n_mask_layers,
+            cfg.get("rho_max", 0.9),
+            cfg.get("rho_min", 0.1),
+            "hierarchical",
+        )
+        result = run_ewc_overlap(
+            model=model, tasks=tasks,
+            epochs_per_task=cfg.get("epochs_per_task", 5),
+            warmup_epochs=cfg.get("warmup_epochs", 1),
+            lr=cfg.get("lr", 1e-3),
+            lambda_ewc=cfg.get("lambda_ewc", 400.0),
+            lambda_overlap=cfg.get("lambda_overlap", 1.0),
+            lambda_budget=cfg.get("lambda_budget", 0.1),
+            rho_sched=rho_sched,
+            kappa=cfg.get("kappa", 0.5),
+            n_fisher_batches=cfg.get("n_fisher_batches", 50),
+            device=device,
+        )
+        extra = collect_mask_artifacts(model, len(tasks))
+
     else:
         raise ValueError(f"Unknown method: {method}")
 
