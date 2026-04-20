@@ -3,7 +3,7 @@ __pycache__/
 *.pyo
 .pytest_cache/
 artifacts/
-data/
+/data/
 CLAUDE_GUIDELINES.MD
 CLAUDE_M1.MD
 CLAUDE_M2.MD
