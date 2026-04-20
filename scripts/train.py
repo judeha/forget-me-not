@@ -348,10 +348,22 @@ def main() -> None:
     tasks = _build_tasks(cfg)
     model = _build_model(cfg, device)
 
-    # Random baseline for forward transfer
+    # Random baseline for forward transfer.
+    # For masked models, pre-register task masks (init=zeros → sigmoid=0.5) so
+    # forward() has a valid task_id key; run_overlap's add_task is idempotent.
+    if hasattr(model, "task_alphas"):
+        for t in range(len(tasks)):
+            model.add_task(t, device)
     model.eval()
     with torch.no_grad():
-        random_acc = np.array([eval_accuracy(model, t["test"], device) for t in tasks], dtype=np.float32)
+        random_acc_list = []
+        for t, task in enumerate(tasks):
+            if hasattr(model, "_current_task"):
+                model._current_task = t
+            random_acc_list.append(eval_accuracy(model, task["test"], device))
+        random_acc = np.array(random_acc_list, dtype=np.float32)
+    if hasattr(model, "_current_task"):
+        model._current_task = 0
 
     result, extra = _run_method(model, tasks, cfg, device)
 
