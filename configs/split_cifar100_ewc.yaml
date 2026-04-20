@@ -1,0 +1,17 @@
+seed: 42
+method: ewc
+model_type: cnn
+dataset: split_cifar100
+data_dir: data/cifar100
+n_tasks: 10
+conv_channels: [32, 64, 128]
+output_size: 100
+input_hw: 32
+epochs_per_task: 5
+batch_size: 128
+lr: 0.001
+lambda_ewc: 400.0
+n_fisher_batches: 50
+subset_size: null
+run_analysis: true
+artifact_dir: artifacts/run_cifar_ewc
