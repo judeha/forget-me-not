@@ -1,0 +1,13 @@
+seed: 42
+method: ewc
+dataset: split_mnist
+data_dir: data/mnist
+n_tasks: 5
+hidden_sizes: [256, 256, 256]
+epochs_per_task: 5
+batch_size: 256
+lr: 0.001
+lambda_ewc: 400.0
+n_fisher_batches: 50
+subset_size: null
+artifact_dir: artifacts/run_ewc
