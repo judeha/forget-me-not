@@ -11,18 +11,26 @@ from pathlib import Path
 
 
 COLS = [
-    ("method",                  14),
+    ("method",                  28),
     ("dataset",                 14),
-    ("final_average_accuracy",  7),
-    ("forgetting",              11),
-    ("forward_transfer",        9),
+    ("final_average_accuracy",  18),
+    ("forgetting",              18),
+    ("forward_transfer",        18),
 ]
+
+HEADERS = {
+    "method":                "Method",
+    "dataset":               "Dataset",
+    "final_average_accuracy":"FAA (↑)",
+    "forgetting":            "Forgetting (↓)",
+    "forward_transfer":      "FWT",
+}
 
 
 def _fmt(val: object, width: int) -> str:
     if isinstance(val, float):
-        return f"{val:.4f}"[:width]
-    return str(val)[:width]
+        return f"{val:.4f}"
+    return str(val)
 
 
 def main() -> None:
@@ -58,7 +66,7 @@ def main() -> None:
     print()
     print(f"  {args.title}")
     print("  " + sep * total_w)
-    header = "  " + "  ".join(f"{c[:w]:<{w}}" for c, w in COLS)
+    header = "  " + "  ".join(f"{HEADERS.get(c, c):<{w}}" for c, w in COLS)
     print(header)
     print("  " + sep * total_w)
     for row in rows:
