@@ -1,0 +1,22 @@
+artifact_dir: artifacts/smoke_overlap_hierarchical
+batch_size: 256
+data_dir: data/mnist
+dataset: split_mnist
+epochs_per_task: 2
+hidden_sizes:
+- 256
+- 256
+- 256
+kappa: 0.5
+lambda_budget: 0.1
+lambda_overlap: 1.0
+lr: 0.001
+mask_beta: 5.0
+method: overlap_hierarchical
+model_type: mlp
+n_tasks: 2
+rho_max: 0.9
+rho_min: 0.1
+seed: 42
+subset_size: 150
+warmup_epochs: 1
