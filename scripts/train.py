@@ -31,6 +31,7 @@ def save_artifacts(
     artifact_dir: Path,
     cfg: dict,
     acc_matrix: np.ndarray,
+    epoch_curves: np.ndarray,
     metrics: dict,
 ) -> None:
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -43,12 +44,21 @@ def save_artifacts(
     with open(artifact_dir / "metrics.json", "w") as f:
         json.dump(metrics, f, indent=2)
 
-    n_tasks = acc_matrix.shape[0]
+    # Long-format per-epoch accuracy: train_task, epoch, eval_task, accuracy
+    n_tasks, epochs_per_task, _ = epoch_curves.shape
+    rows = []
+    for t in range(n_tasks):
+        for e in range(epochs_per_task):
+            for i in range(t + 1):
+                rows.append({"train_task": t, "epoch": e, "eval_task": i,
+                              "accuracy": float(epoch_curves[t, e, i])})
+    pd.DataFrame(rows).to_csv(artifact_dir / "epoch_curves.csv", index=False)
+
+    # Plot 1: accuracy per task after each task completes
     fig, ax = plt.subplots(figsize=(7, 4))
     for i in range(n_tasks):
-        vals = [acc_matrix[t, i] if t >= i else None for t in range(n_tasks)]
-        xs = [t for t, v in enumerate(vals) if v is not None]
-        ys = [v for v in vals if v is not None]
+        xs = list(range(i, n_tasks))
+        ys = [acc_matrix[t, i] for t in xs]
         ax.plot(xs, ys, marker="o", label=f"Task {i+1}")
     ax.set_xlabel("Task trained up to")
     ax.set_ylabel("Test accuracy")
@@ -56,6 +66,24 @@ def save_artifacts(
     ax.legend()
     fig.tight_layout()
     fig.savefig(artifact_dir / "accuracy_vs_task.png", dpi=150)
+    plt.close(fig)
+
+    # Plot 2: per-epoch accuracy curves, one subplot per trained task
+    fig, axes = plt.subplots(1, n_tasks, figsize=(4 * n_tasks, 4), sharey=True)
+    if n_tasks == 1:
+        axes = [axes]
+    for t, ax in enumerate(axes):
+        for i in range(t + 1):
+            ys = epoch_curves[t, :, i]
+            ax.plot(range(1, epochs_per_task + 1), ys, marker=".", label=f"Task {i+1}")
+        ax.set_title(f"Training task {t+1}")
+        ax.set_xlabel("Epoch")
+        if t == 0:
+            ax.set_ylabel("Test accuracy")
+        ax.legend(fontsize=7)
+    fig.suptitle("Per-epoch accuracy on seen tasks")
+    fig.tight_layout()
+    fig.savefig(artifact_dir / "accuracy_vs_epoch.png", dpi=150)
     plt.close(fig)
 
 
@@ -83,7 +111,7 @@ def main() -> None:
         output_size=10,
     ).to(device)
 
-    acc_matrix = run_sequential(
+    acc_matrix, epoch_curves = run_sequential(
         model=model,
         tasks=tasks,
         epochs_per_task=cfg.get("epochs_per_task", 5),
@@ -100,7 +128,7 @@ def main() -> None:
     print("\nMetrics:", metrics)
 
     artifact_dir = Path(cfg.get("artifact_dir", "artifacts/run"))
-    save_artifacts(artifact_dir, cfg, acc_matrix, metrics)
+    save_artifacts(artifact_dir, cfg, acc_matrix, epoch_curves, metrics)
     print(f"\nArtifacts saved to {artifact_dir}/")
 
 

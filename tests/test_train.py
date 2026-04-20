@@ -14,8 +14,9 @@ def test_accuracy_matrix_shape():
     tasks = get_split_mnist(data_dir="data/mnist", batch_size=64, subset_size=30)
     tasks = tasks[:2]
     model = MLP(input_size=784, hidden_sizes=[64], output_size=10)
-    acc_matrix = run_sequential(model, tasks, epochs_per_task=1, lr=1e-3, device=device)
+    acc_matrix, epoch_curves = run_sequential(model, tasks, epochs_per_task=1, lr=1e-3, device=device)
     assert acc_matrix.shape == (2, 2)
+    assert epoch_curves.shape == (2, 1, 2)
 
 
 def test_accuracy_matrix_range():
@@ -24,11 +25,11 @@ def test_accuracy_matrix_range():
     tasks = get_split_mnist(data_dir="data/mnist", batch_size=64, subset_size=30)
     tasks = tasks[:2]
     model = MLP(input_size=784, hidden_sizes=[64], output_size=10)
-    acc_matrix = run_sequential(model, tasks, epochs_per_task=1, lr=1e-3, device=device)
-    # Only filled positions (t >= i) should be in [0, 1]
+    acc_matrix, epoch_curves = run_sequential(model, tasks, epochs_per_task=1, lr=1e-3, device=device)
     for t in range(2):
         for i in range(t + 1):
             assert 0.0 <= acc_matrix[t, i] <= 1.0
+            assert 0.0 <= epoch_curves[t, 0, i] <= 1.0
 
 
 def test_smoke_train():
@@ -38,6 +39,9 @@ def test_smoke_train():
     tasks = get_split_mnist(data_dir="data/mnist", batch_size=32, subset_size=40)
     tasks = tasks[:2]
     model = MLP(input_size=784, hidden_sizes=[32, 32], output_size=10)
-    acc_matrix = run_sequential(model, tasks, epochs_per_task=1, lr=1e-3, device=device)
+    acc_matrix, epoch_curves = run_sequential(model, tasks, epochs_per_task=1, lr=1e-3, device=device)
     assert acc_matrix.shape == (2, 2)
     assert not np.isnan(acc_matrix).any()
+    # NaN only in upper triangle of epoch_curves
+    assert not np.isnan(epoch_curves[0, :, 0]).any()
+    assert np.isnan(epoch_curves[0, :, 1]).all()

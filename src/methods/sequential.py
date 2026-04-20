@@ -49,10 +49,15 @@ def run_sequential(
     epochs_per_task: int,
     lr: float,
     device: torch.device,
-) -> np.ndarray:
-    """Train sequentially and return accuracy matrix A[t, i]."""
+) -> tuple[np.ndarray, np.ndarray]:
+    """Train sequentially and return (acc_matrix, epoch_curves).
+
+    acc_matrix[t, i]      = accuracy on task i after finishing task t
+    epoch_curves[t, e, i] = accuracy on task i after epoch e of task t (NaN where i > t)
+    """
     n_tasks = len(tasks)
     acc_matrix = np.zeros((n_tasks, n_tasks), dtype=np.float32)
+    epoch_curves = np.full((n_tasks, epochs_per_task, n_tasks), np.nan, dtype=np.float32)
 
     criterion = nn.CrossEntropyLoss()
 
@@ -60,8 +65,10 @@ def run_sequential(
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         for epoch in tqdm(range(epochs_per_task), desc=f"Task {t+1}/{n_tasks}", leave=False):
             _train_epoch(model, task["train"], optimizer, criterion, device)
+            for i in range(t + 1):
+                epoch_curves[t, epoch, i] = _eval_accuracy(model, tasks[i]["test"], device)
 
         for i in range(t + 1):
-            acc_matrix[t, i] = _eval_accuracy(model, tasks[i]["test"], device)
+            acc_matrix[t, i] = epoch_curves[t, -1, i]
 
-    return acc_matrix
+    return acc_matrix, epoch_curves
