@@ -19,12 +19,20 @@ def make_rho_schedule(
     """Return per-layer target overlap values.
 
     uniform:      rho_l = rho_max for all l
-    hierarchical: rho_l decreases linearly from rho_max (layer 0) to rho_min (last layer)
+    hierarchical: linearly decreasing rho_max (layer 0) → rho_min (last layer)
+    reversed:     linearly increasing rho_min (layer 0) → rho_max (last layer)
+                  same mean as hierarchical, depth profile inverted
     """
     if mode == "uniform":
         return [rho_max] * n_layers
     if n_layers == 1:
         return [rho_max]
+    if mode == "reversed":
+        return [
+            rho_min + (rho_max - rho_min) * i / (n_layers - 1)
+            for i in range(n_layers)
+        ]
+    # hierarchical (default)
     return [
         rho_max + (rho_min - rho_max) * i / (n_layers - 1)
         for i in range(n_layers)
