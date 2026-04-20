@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+artifacts/
+data/
+CLAUDE_GUIDELINES.MD
+CLAUDE_M1.MD
+CLAUDE_M2.MD
+CLAUDE_M3.MD
+CLAUDE_M4.MD
+CLAUDE_M5.MD
