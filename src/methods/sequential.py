@@ -34,10 +34,21 @@ def _train_epoch(
     return total_loss / len(loader.dataset)  # type: ignore[arg-type]
 
 
+def _remap(y: torch.Tensor, label_map: dict | None) -> torch.Tensor:
+    if not label_map:
+        return y
+    lut = torch.zeros(max(label_map) + 1, dtype=y.dtype, device=y.device)
+    for orig, mapped in label_map.items():
+        lut[orig] = mapped
+    return lut[y]
+
+
 def eval_accuracy(
     model: nn.Module,
     loader: DataLoader,
     device: torch.device,
+    task_id: int | None = None,
+    label_map: dict | None = None,
 ) -> float:
     model.eval()
     correct = 0
@@ -45,8 +56,9 @@ def eval_accuracy(
     with torch.no_grad():
         for x, y in loader:
             x, y = x.to(device), y.to(device)
-            preds = model(x).argmax(dim=1)
-            correct += (preds == y).sum().item()
+            out = model(x, task_id) if task_id is not None else model(x)
+            preds = out.argmax(dim=1)
+            correct += (preds == _remap(y, label_map)).sum().item()
             total += y.size(0)
     return correct / total if total > 0 else 0.0
 
