@@ -46,5 +46,7 @@ def get_permuted_mnist(
         tasks.append({
             "train": DataLoader(train_ds, batch_size=batch_size, shuffle=True),
             "test": DataLoader(test_ds, batch_size=batch_size, shuffle=False),
+            "n_classes": 10,
+            "label_map": {i: i for i in range(10)},
         })
     return tasks
