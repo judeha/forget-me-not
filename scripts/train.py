@@ -57,11 +57,27 @@ def _build_tasks(cfg: dict) -> list[dict]:
 
 def _build_model(cfg: dict, device: torch.device) -> nn.Module:
     model_type = cfg.get("model_type", "mlp")
-    method = cfg.get("method", "sequential")
-    masked = method in ("overlap_uniform", "overlap_hierarchical", "overlap_reversed", "ewc_overlap")
+    method     = cfg.get("method", "sequential")
+    multihead  = cfg.get("multihead", False)
+    masked     = method in ("overlap_uniform", "overlap_hierarchical",
+                            "overlap_reversed", "ewc_overlap",
+                            "overlap_hier_gm", "overlap_hier_gm_ewc")
 
     if model_type == "mlp":
-        if masked:
+        if multihead and masked:
+            from src.models.multihead_mlp import MaskedMultiHeadMLP
+            model = MaskedMultiHeadMLP(
+                input_size=784,
+                hidden_sizes=cfg.get("hidden_sizes", [256, 256, 256]),
+                beta=cfg.get("mask_beta", 5.0),
+            )
+        elif multihead:
+            from src.models.multihead_mlp import MultiHeadMLP
+            model = MultiHeadMLP(
+                input_size=784,
+                hidden_sizes=cfg.get("hidden_sizes", [256, 256, 256]),
+            )
+        elif masked:
             from src.models.masked_mlp import MaskedMLP
             model = MaskedMLP(
                 input_size=784,
@@ -76,7 +92,22 @@ def _build_model(cfg: dict, device: torch.device) -> nn.Module:
                 output_size=10,
             )
     elif model_type == "cnn":
-        if masked:
+        if multihead and masked:
+            from src.models.multihead_cnn import MaskedMultiHeadCNN
+            model = MaskedMultiHeadCNN(
+                in_channels=3,
+                conv_channels=cfg.get("conv_channels", [32, 64, 128]),
+                input_hw=cfg.get("input_hw", 32),
+                beta=cfg.get("mask_beta", 5.0),
+            )
+        elif multihead:
+            from src.models.multihead_cnn import MultiHeadCNN
+            model = MultiHeadCNN(
+                in_channels=3,
+                conv_channels=cfg.get("conv_channels", [32, 64, 128]),
+                input_hw=cfg.get("input_hw", 32),
+            )
+        elif masked:
             from src.models.cnn import MaskedCNN
             model = MaskedCNN(
                 in_channels=3,
@@ -106,9 +137,57 @@ def _run_method(
     cfg: dict,
     device: torch.device,
 ) -> tuple[TrainResult, dict | None]:
-    method = cfg.get("method", "sequential")
-    extra: dict | None = None  # optional extra artifacts (Fisher stats, mask artifacts)
+    method    = cfg.get("method", "sequential")
+    multihead = cfg.get("multihead", False)
+    extra: dict | None = None
 
+    # ── task-incremental (multihead) dispatch ─────────────────────────────────
+    if multihead:
+        from src.methods.multihead import (
+            run_multihead_sequential, run_multihead_ewc,
+            run_multihead_masked_overlap,
+        )
+        from src.methods.overlap import make_rho_schedule, collect_mask_artifacts
+
+        if method == "sequential":
+            result = run_multihead_sequential(
+                model=model, tasks=tasks,
+                epochs_per_task=cfg.get("epochs_per_task", 5),
+                lr=cfg.get("lr", 1e-3), device=device,
+            )
+        elif method == "ewc":
+            result = run_multihead_ewc(
+                model=model, tasks=tasks,
+                epochs_per_task=cfg.get("epochs_per_task", 5),
+                lr=cfg.get("lr", 1e-3),
+                lambda_ewc=cfg.get("lambda_ewc", 400.0),
+                n_fisher_batches=cfg.get("n_fisher_batches", 50),
+                device=device,
+            )
+        elif method in ("overlap_hier_gm", "overlap_hier_no_gm"):
+            use_gm = (method == "overlap_hier_gm")
+            rho_sched = make_rho_schedule(
+                model.n_mask_layers,
+                cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), "hierarchical",
+            )
+            result = run_multihead_masked_overlap(
+                model=model, tasks=tasks,
+                epochs_per_task=cfg.get("epochs_per_task", 5),
+                warmup_epochs=cfg.get("warmup_epochs", 1),
+                lr=cfg.get("lr", 1e-3),
+                lambda_overlap=cfg.get("lambda_overlap", 1.0),
+                lambda_budget=cfg.get("lambda_budget", 0.1),
+                rho_sched=rho_sched,
+                kappa=cfg.get("kappa", 0.5),
+                use_gradient_masking=use_gm,
+                device=device,
+            )
+            extra = collect_mask_artifacts(model, len(tasks))
+        else:
+            raise ValueError(f"Unknown multihead method: {method}")
+        return result, extra
+
+    # ── shared-head dispatch ──────────────────────────────────────────────────
     if method == "sequential":
         result = run_sequential(
             model=model, tasks=tasks,
@@ -376,18 +455,27 @@ def main() -> None:
     model = _build_model(cfg, device)
 
     # Random baseline for forward transfer.
-    # For masked models, pre-register task masks (init=zeros → sigmoid=0.5) so
-    # forward() has a valid task_id key; run_overlap's add_task is idempotent.
-    if hasattr(model, "task_alphas"):
-        for t in range(len(tasks)):
+    # Pre-register all task heads/masks before eval so forward() has valid keys.
+    for t, task in enumerate(tasks):
+        if hasattr(model, "task_alphas") and hasattr(model, "task_heads"):
+            model.add_task(t, task["n_classes"], device)
+        elif hasattr(model, "task_alphas"):
             model.add_task(t, device)
+        elif hasattr(model, "task_heads"):
+            model.add_task_head(t, task["n_classes"], device)
     model.eval()
+    multihead = cfg.get("multihead", False)
     with torch.no_grad():
         random_acc_list = []
         for t, task in enumerate(tasks):
             if hasattr(model, "_current_task"):
                 model._current_task = t
-            random_acc_list.append(eval_accuracy(model, task["test"], device))
+            if multihead:
+                random_acc_list.append(eval_accuracy(
+                    model, task["test"], device,
+                    task_id=t, label_map=task.get("label_map")))
+            else:
+                random_acc_list.append(eval_accuracy(model, task["test"], device))
         random_acc = np.array(random_acc_list, dtype=np.float32)
     if hasattr(model, "_current_task"):
         model._current_task = 0
