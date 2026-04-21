@@ -54,5 +54,7 @@ def get_split_mnist(
             "train": DataLoader(train_ds, batch_size=batch_size, shuffle=True),
             "test": DataLoader(test_ds, batch_size=batch_size, shuffle=False),
             "classes": classes,
+            "n_classes": 2,
+            "label_map": {classes[0]: 0, classes[1]: 1},
         })
     return tasks
