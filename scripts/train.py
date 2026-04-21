@@ -61,7 +61,7 @@ def _build_model(cfg: dict, device: torch.device) -> nn.Module:
     multihead  = cfg.get("multihead", False)
     masked     = method in ("overlap_uniform", "overlap_hierarchical",
                             "overlap_reversed", "ewc_overlap",
-                            "overlap_hier_gm", "overlap_hier_gm_ewc")
+                            "overlap_hier_gm", "overlap_hier_no_gm", "overlap_hier_gm_ewc")
 
     if model_type == "mlp":
         if multihead and masked:
