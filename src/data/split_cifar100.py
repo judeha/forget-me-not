@@ -8,8 +8,10 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from torchvision import datasets
 
-# 10 tasks of 10 classes each
-TASK_CLASSES: list[list[int]] = [list(range(i * 10, (i + 1) * 10)) for i in range(10)]
+def _make_task_classes(n_tasks: int) -> list[list[int]]:
+    """Divide 100 CIFAR-100 classes evenly across n_tasks."""
+    cpt = 100 // n_tasks  # classes per task (floor)
+    return [list(range(i * cpt, (i + 1) * cpt)) for i in range(n_tasks)]
 
 _MEAN = (0.5071, 0.4867, 0.4408)
 _STD = (0.2675, 0.2565, 0.2761)
@@ -38,9 +40,10 @@ def get_split_cifar100(
     batch_size: int = 128,
     subset_size: Optional[int] = None,
 ) -> list[dict]:
-    """Return a list of task dicts with 'train' and 'test' DataLoaders.
+    """Return task dicts for Split CIFAR-100.
 
-    10 tasks of 10 classes each (classes 0-9, 10-19, ..., 90-99).
+    Supports n_tasks in {5,10,15,20}: 100//n_tasks classes per task.
+    Each dict has train/test loaders, n_classes, and label_map.
     """
     # Bypass SSL cert issues in some environments
     _orig = ssl._create_default_https_context
@@ -51,13 +54,16 @@ def get_split_cifar100(
     finally:
         ssl._create_default_https_context = _orig
 
+    task_classes = _make_task_classes(n_tasks)
     tasks = []
-    for classes in TASK_CLASSES[:n_tasks]:
+    for classes in task_classes:
         train_ds = _filter_cifar(train_full, classes, subset_size)
         test_ds = _filter_cifar(test_full, classes, subset_size)
         tasks.append({
             "train": DataLoader(train_ds, batch_size=batch_size, shuffle=True),
             "test": DataLoader(test_ds, batch_size=batch_size, shuffle=False),
             "classes": classes,
+            "n_classes": len(classes),
+            "label_map": {c: i for i, c in enumerate(classes)},
         })
     return tasks
