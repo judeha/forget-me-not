@@ -1,0 +1,16 @@
+seed: 42
+method: ewc
+multihead: true
+model_type: cnn
+dataset: split_cifar100
+data_dir: data/cifar100
+n_tasks: 20
+conv_channels: [64, 128, 256]
+input_hw: 32
+epochs_per_task: 10
+batch_size: 128
+lr: 0.001
+lambda_ewc: 400.0
+n_fisher_batches: 50
+subset_size: null
+artifact_dir: artifacts/run_cifar100_ewc_mh_20t

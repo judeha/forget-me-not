@@ -1,0 +1,21 @@
+seed: 42
+method: overlap_hier_no_gm
+multihead: true
+model_type: cnn
+dataset: split_cifar100
+data_dir: data/cifar100
+n_tasks: 20
+conv_channels: [64, 128, 256]
+input_hw: 32
+epochs_per_task: 10
+batch_size: 128
+lr: 0.001
+warmup_epochs: 1
+lambda_overlap: 1.0
+lambda_budget: 0.1
+rho_max: 0.9
+rho_min: 0.1
+kappa: 0.5
+mask_beta: 5.0
+subset_size: null
+artifact_dir: artifacts/run_cifar100_overlap_hier_no_gm_mh_20t

@@ -1,0 +1,15 @@
+seed: 42
+method: ewc
+multihead: true
+model_type: mlp
+dataset: permuted_mnist
+data_dir: data/mnist
+n_tasks: 10
+hidden_sizes: [256, 256, 256]
+epochs_per_task: 5
+batch_size: 256
+lr: 0.001
+lambda_ewc: 400.0
+n_fisher_batches: 50
+subset_size: null
+artifact_dir: artifacts/run_permuted_mnist_ewc_mh
