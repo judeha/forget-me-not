@@ -8,9 +8,9 @@ n_tasks: 15
 conv_channels: [64, 128, 256]
 input_hw: 32
 epochs_per_task: 10
+warmup_epochs: 1
 batch_size: 128
 lr: 0.001
-warmup_epochs: 1
 lambda_overlap: 1.0
 lambda_budget: 0.1
 rho_max: 0.9

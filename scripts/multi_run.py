@@ -37,7 +37,7 @@ def _append_to_db(cfg: dict, metrics: dict, seed: int, run_dir: str) -> None:
         "dataset":           cfg.get("dataset", ""),
         "n_tasks":           cfg.get("n_tasks", ""),
         "multihead":         cfg.get("multihead", False),
-        "gradient_masking":  method in ("overlap_hier_gm", "overlap_hier_gm_ewc"),
+        "gradient_masking":  False,
         "epochs_per_task":   cfg.get("epochs_per_task", ""),
         "lr":                cfg.get("lr", ""),
         "lambda_ewc":        cfg.get("lambda_ewc", 0),

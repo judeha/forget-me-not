@@ -61,8 +61,7 @@ def _build_model(cfg: dict, device: torch.device) -> nn.Module:
     multihead  = cfg.get("multihead", False)
     masked     = method in ("overlap_uniform", "overlap_hierarchical",
                             "overlap_reversed", "ewc_overlap",
-                            "overlap_hier_gm", "overlap_hier_no_gm", "overlap_hier_gm_ewc",
-                            "gm_budget")
+                            "overlap_hier_no_gm", "overlap_hier_ewc")
 
     if model_type == "mlp":
         if multihead and masked:
@@ -146,7 +145,7 @@ def _run_method(
     if multihead:
         from src.methods.multihead import (
             run_multihead_sequential, run_multihead_ewc,
-            run_multihead_masked_overlap,
+            run_multihead_masked_overlap, run_multihead_ewc_overlap,
         )
         from src.methods.overlap import make_rho_schedule, collect_mask_artifacts
 
@@ -165,8 +164,7 @@ def _run_method(
                 n_fisher_batches=cfg.get("n_fisher_batches", 50),
                 device=device,
             )
-        elif method in ("overlap_hier_gm", "overlap_hier_no_gm"):
-            use_gm = (method == "overlap_hier_gm")
+        elif method == "overlap_hier_no_gm":
             rho_sched = make_rho_schedule(
                 model.n_mask_layers,
                 cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), "hierarchical",
@@ -180,23 +178,26 @@ def _run_method(
                 lambda_budget=cfg.get("lambda_budget", 0.1),
                 rho_sched=rho_sched,
                 kappa=cfg.get("kappa", 0.5),
-                use_gradient_masking=use_gm,
+                use_gradient_masking=False,
                 device=device,
             )
             extra = collect_mask_artifacts(model, len(tasks))
-        elif method == "gm_budget":
-            # Budget loss + gradient masking only — no overlap loss (ablation baseline)
-            dummy_rho = [0.0] * model.n_mask_layers
-            result = run_multihead_masked_overlap(
+        elif method == "overlap_hier_ewc":
+            rho_sched = make_rho_schedule(
+                model.n_mask_layers,
+                cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), "hierarchical",
+            )
+            result = run_multihead_ewc_overlap(
                 model=model, tasks=tasks,
                 epochs_per_task=cfg.get("epochs_per_task", 5),
                 warmup_epochs=cfg.get("warmup_epochs", 1),
                 lr=cfg.get("lr", 1e-3),
-                lambda_overlap=0.0,
+                lambda_ewc=cfg.get("lambda_ewc", 400.0),
+                lambda_overlap=cfg.get("lambda_overlap", 1.0),
                 lambda_budget=cfg.get("lambda_budget", 0.1),
-                rho_sched=dummy_rho,
+                rho_sched=rho_sched,
                 kappa=cfg.get("kappa", 0.5),
-                use_gradient_masking=True,
+                n_fisher_batches=cfg.get("n_fisher_batches", 50),
                 device=device,
             )
             extra = collect_mask_artifacts(model, len(tasks))
