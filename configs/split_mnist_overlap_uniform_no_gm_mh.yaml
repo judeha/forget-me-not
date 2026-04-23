@@ -1,0 +1,23 @@
+seed: 42
+method: overlap_uniform_no_gm
+multihead: true
+model_type: mlp
+dataset: split_mnist
+data_dir: data/mnist
+n_tasks: 5
+hidden_sizes: [256, 256, 256]
+epochs_per_task: 5
+warmup_epochs: 1
+batch_size: 256
+lr: 0.001
+lambda_ewc: 400.0
+lambda_overlap: 1.0
+lambda_budget: 0.1
+rho_max: 0.9
+rho_min: 0.1
+kappa: 0.5
+mask_beta: 5.0
+n_fisher_batches: 50
+subset_size: null
+save_weights: true
+artifact_dir: artifacts/run_split_mnist_overlap_uniform_no_gm_mh

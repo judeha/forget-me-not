@@ -59,9 +59,13 @@ def _build_model(cfg: dict, device: torch.device) -> nn.Module:
     model_type = cfg.get("model_type", "mlp")
     method     = cfg.get("method", "sequential")
     multihead  = cfg.get("multihead", False)
-    masked     = method in ("overlap_uniform", "overlap_hierarchical",
-                            "overlap_reversed", "ewc_overlap",
-                            "overlap_hier_no_gm", "overlap_hier_ewc")
+    _overlap_methods = {
+        "overlap_hier_no_gm", "overlap_uniform_no_gm", "overlap_reversed_no_gm",
+        "overlap_hier_ewc",   "overlap_uniform_ewc",   "overlap_reversed_ewc",
+        # legacy single-head
+        "overlap_uniform", "overlap_hierarchical", "overlap_reversed", "ewc_overlap",
+    }
+    masked = method in _overlap_methods
 
     if model_type == "mlp":
         if multihead and masked:
@@ -164,10 +168,11 @@ def _run_method(
                 n_fisher_batches=cfg.get("n_fisher_batches", 50),
                 device=device,
             )
-        elif method == "overlap_hier_no_gm":
+        elif method.startswith("overlap_") and method.endswith("_no_gm"):
+            sched_mode = method[len("overlap_"):-len("_no_gm")]  # hier|uniform|reversed
             rho_sched = make_rho_schedule(
                 model.n_mask_layers,
-                cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), "hierarchical",
+                cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), sched_mode,
             )
             result = run_multihead_masked_overlap(
                 model=model, tasks=tasks,
@@ -182,10 +187,11 @@ def _run_method(
                 device=device,
             )
             extra = collect_mask_artifacts(model, len(tasks))
-        elif method == "overlap_hier_ewc":
+        elif method.startswith("overlap_") and method.endswith("_ewc"):
+            sched_mode = method[len("overlap_"):-len("_ewc")]  # hier|uniform|reversed
             rho_sched = make_rho_schedule(
                 model.n_mask_layers,
-                cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), "hierarchical",
+                cfg.get("rho_max", 0.9), cfg.get("rho_min", 0.1), sched_mode,
             )
             result = run_multihead_ewc_overlap(
                 model=model, tasks=tasks,
