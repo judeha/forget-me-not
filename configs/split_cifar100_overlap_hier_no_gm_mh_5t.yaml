@@ -7,7 +7,7 @@ data_dir: data/cifar100
 n_tasks: 5
 conv_channels: [64, 128, 256]
 input_hw: 32
-epochs_per_task: 10
+epochs_per_task: 5
 warmup_epochs: 1
 batch_size: 128
 lr: 0.001
@@ -17,5 +17,5 @@ rho_max: 0.9
 rho_min: 0.1
 kappa: 0.5
 mask_beta: 5.0
-subset_size: null
+subset_size: 500
 artifact_dir: artifacts/run_cifar100_overlap_hier_no_gm_mh_5t

@@ -7,7 +7,7 @@ data_dir: data/cifar100
 n_tasks: 15
 conv_channels: [64, 128, 256]
 input_hw: 32
-epochs_per_task: 10
+epochs_per_task: 5
 warmup_epochs: 1
 batch_size: 128
 lr: 0.001
@@ -19,5 +19,5 @@ rho_min: 0.1
 kappa: 0.5
 mask_beta: 5.0
 n_fisher_batches: 50
-subset_size: null
+subset_size: 500
 artifact_dir: artifacts/run_cifar100_overlap_reversed_ewc_mh_15t
