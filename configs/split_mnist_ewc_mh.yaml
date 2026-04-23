@@ -13,3 +13,4 @@ lambda_ewc: 400.0
 n_fisher_batches: 50
 subset_size: null
 artifact_dir: artifacts/run_split_mnist_ewc_mh
+save_weights: true

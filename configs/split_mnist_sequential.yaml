@@ -8,3 +8,4 @@ batch_size: 256
 lr: 0.001
 subset_size: null
 artifact_dir: artifacts/run_sequential
+save_weights: true

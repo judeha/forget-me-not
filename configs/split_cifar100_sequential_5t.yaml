@@ -3,13 +3,12 @@ method: sequential
 model_type: cnn
 dataset: split_cifar100
 data_dir: data/cifar100
-n_tasks: 10
-conv_channels: [32, 64, 128]
+n_tasks: 5
+conv_channels: [64, 128, 256]
 output_size: 100
 input_hw: 32
-epochs_per_task: 5
+epochs_per_task: 10
 batch_size: 128
 lr: 0.001
 subset_size: null
-run_analysis: true
-artifact_dir: artifacts/run_cifar_sequential
+artifact_dir: artifacts/run_cifar100_sequential_5t

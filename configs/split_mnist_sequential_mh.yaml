@@ -11,3 +11,4 @@ batch_size: 256
 lr: 0.001
 subset_size: null
 artifact_dir: artifacts/run_split_mnist_seq_mh
+save_weights: true

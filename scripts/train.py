@@ -61,7 +61,8 @@ def _build_model(cfg: dict, device: torch.device) -> nn.Module:
     multihead  = cfg.get("multihead", False)
     masked     = method in ("overlap_uniform", "overlap_hierarchical",
                             "overlap_reversed", "ewc_overlap",
-                            "overlap_hier_gm", "overlap_hier_no_gm", "overlap_hier_gm_ewc")
+                            "overlap_hier_gm", "overlap_hier_no_gm", "overlap_hier_gm_ewc",
+                            "gm_budget")
 
     if model_type == "mlp":
         if multihead and masked:
@@ -180,6 +181,22 @@ def _run_method(
                 rho_sched=rho_sched,
                 kappa=cfg.get("kappa", 0.5),
                 use_gradient_masking=use_gm,
+                device=device,
+            )
+            extra = collect_mask_artifacts(model, len(tasks))
+        elif method == "gm_budget":
+            # Budget loss + gradient masking only — no overlap loss (ablation baseline)
+            dummy_rho = [0.0] * model.n_mask_layers
+            result = run_multihead_masked_overlap(
+                model=model, tasks=tasks,
+                epochs_per_task=cfg.get("epochs_per_task", 5),
+                warmup_epochs=cfg.get("warmup_epochs", 1),
+                lr=cfg.get("lr", 1e-3),
+                lambda_overlap=0.0,
+                lambda_budget=cfg.get("lambda_budget", 0.1),
+                rho_sched=dummy_rho,
+                kappa=cfg.get("kappa", 0.5),
+                use_gradient_masking=True,
                 device=device,
             )
             extra = collect_mask_artifacts(model, len(tasks))
@@ -503,6 +520,12 @@ def main() -> None:
 
     artifact_dir = Path(cfg.get("artifact_dir", "artifacts/run"))
     save_artifacts(artifact_dir, cfg, result, metrics, extra, analysis)
+
+    if cfg.get("save_weights", False):
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        torch.save(model.state_dict(), artifact_dir / "model_weights.pt")
+        print(f"Weights saved to {artifact_dir}/model_weights.pt")
+
     print(f"\nArtifacts saved to {artifact_dir}/")
 
 
